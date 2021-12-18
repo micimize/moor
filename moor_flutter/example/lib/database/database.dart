@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:flutter/material.dart' show debugPrint, debugPrintStack;
 import 'package:moor_flutter/moor_flutter.dart';
 
 part 'database.g.dart';
@@ -11,9 +12,16 @@ class Todos extends Table {
 
   DateTimeColumn get targetDate => dateTime().nullable()();
 
-  IntColumn get category => integer()
-      .nullable()
-      .customConstraint('NULLABLE REFERENCES categories(id)')();
+  IntColumn get category => integer()();
+  // .nullable()
+  // .customConstraint('REFERENCES categories(id)')();
+
+  @override
+  List<String> get customConstraints => [
+        '''
+        FOREIGN KEY(category) REFERENCES categories(id) DEFERRABLE INITIALLY DEFERRED
+        '''
+      ];
 }
 
 @DataClassName('Category')
@@ -73,6 +81,7 @@ class Database extends _$Database {
         }
       },
       beforeOpen: (details) async {
+        await customStatement('PRAGMA foreign_keys = ON');
         if (details.wasCreated) {
           // create default categories and entries
           final workId = await into(categories)
@@ -80,6 +89,7 @@ class Database extends _$Database {
 
           await into(todos).insert(TodosCompanion(
             content: const Value('A first todo entry'),
+            category: Value(workId),
             targetDate: Value(DateTime.now()),
           ));
 
@@ -132,8 +142,15 @@ class Database extends _$Database {
     });
   }
 
-  Future createEntry(TodosCompanion entry) {
-    return into(todos).insert(entry);
+  Future createEntry(TodosCompanion entry) async {
+    try {
+      await transaction(() async {
+        await into(todos).insert(entry);
+      });
+    } catch (e, s) {
+      debugPrint(e.toString());
+      debugPrintStack(stackTrace: s);
+    }
   }
 
   /// Updates the row in the database represents this entry by writing the

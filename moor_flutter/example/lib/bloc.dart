@@ -62,7 +62,7 @@ class TodoAppBloc {
   void createEntry(String content) {
     db.createEntry(TodosCompanion(
       content: Value(content),
-      category: Value(_activeCategory.value?.id),
+      category: Value(_activeCategory.value?.id ?? 100),
     ));
   }
 
