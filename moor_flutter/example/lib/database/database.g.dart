@@ -11,12 +11,12 @@ class TodoEntry extends DataClass implements Insertable<TodoEntry> {
   final int id;
   final String content;
   final DateTime? targetDate;
-  final int? category;
+  final int category;
   TodoEntry(
       {required this.id,
       required this.content,
       this.targetDate,
-      this.category});
+      required this.category});
   factory TodoEntry.fromData(Map<String, dynamic> data, GeneratedDatabase db,
       {String? prefix}) {
     final effectivePrefix = prefix ?? '';
@@ -28,7 +28,7 @@ class TodoEntry extends DataClass implements Insertable<TodoEntry> {
       targetDate: const DateTimeType()
           .mapFromDatabaseResponse(data['${effectivePrefix}target_date']),
       category: const IntType()
-          .mapFromDatabaseResponse(data['${effectivePrefix}category']),
+          .mapFromDatabaseResponse(data['${effectivePrefix}category'])!,
     );
   }
   @override
@@ -39,9 +39,7 @@ class TodoEntry extends DataClass implements Insertable<TodoEntry> {
     if (!nullToAbsent || targetDate != null) {
       map['target_date'] = Variable<DateTime?>(targetDate);
     }
-    if (!nullToAbsent || category != null) {
-      map['category'] = Variable<int?>(category);
-    }
+    map['category'] = Variable<int>(category);
     return map;
   }
 
@@ -52,9 +50,7 @@ class TodoEntry extends DataClass implements Insertable<TodoEntry> {
       targetDate: targetDate == null && nullToAbsent
           ? const Value.absent()
           : Value(targetDate),
-      category: category == null && nullToAbsent
-          ? const Value.absent()
-          : Value(category),
+      category: Value(category),
     );
   }
 
@@ -65,7 +61,7 @@ class TodoEntry extends DataClass implements Insertable<TodoEntry> {
       id: serializer.fromJson<int>(json['id']),
       content: serializer.fromJson<String>(json['content']),
       targetDate: serializer.fromJson<DateTime?>(json['targetDate']),
-      category: serializer.fromJson<int?>(json['category']),
+      category: serializer.fromJson<int>(json['category']),
     );
   }
   @override
@@ -75,7 +71,7 @@ class TodoEntry extends DataClass implements Insertable<TodoEntry> {
       'id': serializer.toJson<int>(id),
       'content': serializer.toJson<String>(content),
       'targetDate': serializer.toJson<DateTime?>(targetDate),
-      'category': serializer.toJson<int?>(category),
+      'category': serializer.toJson<int>(category),
     };
   }
 
@@ -114,7 +110,7 @@ class TodosCompanion extends UpdateCompanion<TodoEntry> {
   final Value<int> id;
   final Value<String> content;
   final Value<DateTime?> targetDate;
-  final Value<int?> category;
+  final Value<int> category;
   const TodosCompanion({
     this.id = const Value.absent(),
     this.content = const Value.absent(),
@@ -125,13 +121,14 @@ class TodosCompanion extends UpdateCompanion<TodoEntry> {
     this.id = const Value.absent(),
     required String content,
     this.targetDate = const Value.absent(),
-    this.category = const Value.absent(),
-  }) : content = Value(content);
+    required int category,
+  })  : content = Value(content),
+        category = Value(category);
   static Insertable<TodoEntry> custom({
     Expression<int>? id,
     Expression<String>? content,
     Expression<DateTime?>? targetDate,
-    Expression<int?>? category,
+    Expression<int>? category,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
@@ -145,7 +142,7 @@ class TodosCompanion extends UpdateCompanion<TodoEntry> {
       {Value<int>? id,
       Value<String>? content,
       Value<DateTime?>? targetDate,
-      Value<int?>? category}) {
+      Value<int>? category}) {
     return TodosCompanion(
       id: id ?? this.id,
       content: content ?? this.content,
@@ -167,7 +164,7 @@ class TodosCompanion extends UpdateCompanion<TodoEntry> {
       map['target_date'] = Variable<DateTime?>(targetDate.value);
     }
     if (category.present) {
-      map['category'] = Variable<int?>(category.value);
+      map['category'] = Variable<int>(category.value);
     }
     return map;
   }
@@ -189,25 +186,27 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, TodoEntry> {
   final String? _alias;
   $TodosTable(this._db, [this._alias]);
   final VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
   late final GeneratedColumn<int?> id = GeneratedColumn<int?>(
       'id', aliasedName, false,
-      typeName: 'INTEGER',
+      type: const IntType(),
       requiredDuringInsert: false,
       defaultConstraints: 'PRIMARY KEY AUTOINCREMENT');
   final VerificationMeta _contentMeta = const VerificationMeta('content');
+  @override
   late final GeneratedColumn<String?> content = GeneratedColumn<String?>(
       'content', aliasedName, false,
-      typeName: 'TEXT', requiredDuringInsert: true);
+      type: const StringType(), requiredDuringInsert: true);
   final VerificationMeta _targetDateMeta = const VerificationMeta('targetDate');
+  @override
   late final GeneratedColumn<DateTime?> targetDate = GeneratedColumn<DateTime?>(
       'target_date', aliasedName, true,
-      typeName: 'INTEGER', requiredDuringInsert: false);
+      type: const IntType(), requiredDuringInsert: false);
   final VerificationMeta _categoryMeta = const VerificationMeta('category');
+  @override
   late final GeneratedColumn<int?> category = GeneratedColumn<int?>(
-      'category', aliasedName, true,
-      typeName: 'INTEGER',
-      requiredDuringInsert: false,
-      $customConstraints: 'NULLABLE REFERENCES categories(id)');
+      'category', aliasedName, false,
+      type: const IntType(), requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [id, content, targetDate, category];
   @override
@@ -237,6 +236,8 @@ class $TodosTable extends Todos with TableInfo<$TodosTable, TodoEntry> {
     if (data.containsKey('category')) {
       context.handle(_categoryMeta,
           category.isAcceptableOrUnknown(data['category']!, _categoryMeta));
+    } else if (isInserting) {
+      context.missing(_categoryMeta);
     }
     return context;
   }
@@ -380,16 +381,18 @@ class $CategoriesTable extends Categories
   final String? _alias;
   $CategoriesTable(this._db, [this._alias]);
   final VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
   late final GeneratedColumn<int?> id = GeneratedColumn<int?>(
       'id', aliasedName, false,
-      typeName: 'INTEGER',
+      type: const IntType(),
       requiredDuringInsert: false,
       defaultConstraints: 'PRIMARY KEY AUTOINCREMENT');
   final VerificationMeta _descriptionMeta =
       const VerificationMeta('description');
+  @override
   late final GeneratedColumn<String?> description = GeneratedColumn<String?>(
       'desc', aliasedName, false,
-      typeName: 'TEXT', requiredDuringInsert: true);
+      type: const StringType(), requiredDuringInsert: true);
   @override
   List<GeneratedColumn> get $columns => [id, description];
   @override
@@ -431,10 +434,10 @@ abstract class _$Database extends GeneratedDatabase {
   _$Database(QueryExecutor e) : super(SqlTypeSystem.defaultInstance, e);
   late final $TodosTable todos = $TodosTable(this);
   late final $CategoriesTable categories = $CategoriesTable(this);
-  Future<int> _resetCategory(int? var1) {
+  Future<int> _resetCategory(int var1) {
     return customUpdate(
       'UPDATE todos SET category = NULL WHERE category = ?',
-      variables: [Variable<int?>(var1)],
+      variables: [Variable<int>(var1)],
       updates: {todos},
       updateKind: UpdateKind.update,
     );
